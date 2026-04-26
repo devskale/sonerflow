@@ -35,6 +35,10 @@ body {
   overflow: hidden;
 }
 
+.is-hidden {
+  display: none !important;
+}
+
 .topbar {
   position: sticky;
   top: 0;
@@ -149,6 +153,39 @@ body {
 .crumbs b {
   color: rgba(255, 255, 255, 0.90);
   font-weight: 650;
+}
+
+.modechip {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(0, 0, 0, 0.14);
+  color: rgba(255, 255, 255, 0.78);
+  height: 40px;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body[data-view="top"] .modechip {
+  border-color: rgba(111, 183, 255, 0.40);
+  background: rgba(111, 183, 255, 0.10);
+}
+
+body[data-view="focus"] .modechip {
+  border-color: rgba(124, 247, 192, 0.40);
+  background: rgba(124, 247, 192, 0.10);
+}
+
+body[data-view="leaf"] .modechip {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .stage {

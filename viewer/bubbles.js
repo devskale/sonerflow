@@ -7,8 +7,10 @@ const $ = (id) => {
 const canvas = $("c")
 const storePathEl = $("storePath")
 const reloadBtn = $("reloadBtn")
+const backBtn = $("backBtn")
 const statusEl = $("status")
 const crumbsEl = $("crumbs")
+const modeChipEl = $("modeChip")
 const hudTitleEl = $("hudTitle")
 const hudSubEl = $("hudSub")
 const tipEl = $("tip")
@@ -42,6 +44,8 @@ const state = {
   forceSubAllMetaId: null,
   trayMetaId: null,
   trayLeafId: null,
+  uiView: "",
+  uiFocusId: null,
   running: false,
 }
 
@@ -149,6 +153,40 @@ function closeTray() {
   state.trayMetaId = null
   state.trayLeafId = null
   renderTray()
+}
+
+function updateModeUi(derived) {
+  const subAlpha = state.mode === "meta" ? smoothstep(1.15, 1.95, state.zoom) : 0
+  const focusId = state.focusMetaId
+  const focus = focusId ? derived?.labelsById?.get(focusId) : null
+  const focusName = focus?.name || focusId || ""
+
+  let view = "top"
+  let chip = "TOP"
+  if (state.mode === "leaf") {
+    view = "leaf"
+    chip = `IN · ${derived?.labelsById?.get(state.metaId)?.name || state.metaId || ""}`
+  } else if (subAlpha > 0.25 && focusName) {
+    view = "focus"
+    chip = `IN · ${focusName}`
+  }
+
+  if (state.uiView !== view || state.uiFocusId !== focusId) {
+    state.uiView = view
+    state.uiFocusId = focusId
+    document.body.dataset.view = view
+    modeChipEl.textContent = chip
+    backBtn.classList.toggle("is-hidden", view !== "leaf")
+    if (view === "top") {
+      crumbsEl.innerHTML = `<b>top</b> · click to zoom`
+      hudTitleEl.textContent = `Top-level categories`
+      hudSubEl.textContent = `${fmt.n(derived?.meta?.length || 0)} metas`
+    } else if (view === "focus") {
+      crumbsEl.innerHTML = `<b>top</b> ▸ <b>${focusName}</b> · click bubble to enter`
+      hudTitleEl.textContent = `Preview · ${focusName}`
+      hudSubEl.textContent = `${fmt.n(derived?.leafByMeta?.get(focusId)?.length || 0)} subbubbles`
+    }
+  }
 }
 
 function setStatus(text, kind = "ok") {
@@ -824,15 +862,16 @@ function setTooltip(node, px, py) {
 
 function setCrumbs(derived) {
   if (state.mode === "meta") {
-    crumbsEl.innerHTML = `<b>meta</b> · click to zoom`
-    hudTitleEl.textContent = `Top-level categories`
-    hudSubEl.textContent = `${fmt.n(derived.meta.length)} metas`
+    updateModeUi(derived)
     return
   }
   const m = derived.labelsById.get(state.metaId)
   crumbsEl.innerHTML = `<b>${m?.name || state.metaId}</b> · Esc to go back`
   hudTitleEl.textContent = `${m?.name || state.metaId}`
   hudSubEl.textContent = `${fmt.n(derived.leafByMeta.get(state.metaId)?.length || 0)} leaf clusters`
+  document.body.dataset.view = "leaf"
+  modeChipEl.textContent = `IN · ${m?.name || state.metaId}`
+  backBtn.classList.remove("is-hidden")
 }
 
 function zoomTo(targetZoom, focusPx, focusPy) {
@@ -906,6 +945,7 @@ function runLoop() {
       state.subNodes = []
       state.subLeafCount = 0
     }
+    updateModeUi(state.data.derived)
   }
   draw(state.nodes)
   requestAnimationFrame(runLoop)
@@ -1068,6 +1108,7 @@ canvas.addEventListener("wheel", (e) => {
 
 reloadBtn.addEventListener("click", () => reload())
 trayCloseBtn.addEventListener("click", () => closeTray())
+backBtn.addEventListener("click", () => goBack())
 storePathEl.addEventListener("keydown", (e) => {
   if (e.key === "Enter") reload()
 })
