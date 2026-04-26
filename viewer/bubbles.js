@@ -10,6 +10,7 @@ const reloadBtn = $("reloadBtn")
 const backBtn = $("backBtn")
 const listLinkEl = $("listLink")
 const searchEl = $("search")
+const clearSearchBtn = $("clearSearchBtn")
 const statusEl = $("status")
 const crumbsEl = $("crumbs")
 const modeChipEl = $("modeChip")
@@ -108,18 +109,46 @@ function computeSearchCache(derived) {
     return
   }
 
-  const repoIds = []
+  const repoSet = new Set()
+  const leafSet = new Set()
+  const metaSet = new Set()
+
+  for (const [id, lbl] of derived.labelsById.entries()) {
+    if (!id || typeof id !== "string") continue
+    const name = typeof lbl?.name === "string" ? lbl.name : id
+    if (!isTextMatch(name, q)) continue
+    if (id.startsWith("leaf-")) {
+      leafSet.add(id)
+      const pid = typeof lbl?.parent_id === "string" ? lbl.parent_id : null
+      if (pid) metaSet.add(pid)
+      const repos = derived.reposByLeaf.get(id) || []
+      for (const rid of repos) repoSet.add(rid)
+    } else if (id.startsWith("meta-")) {
+      metaSet.add(id)
+      const repos = derived.reposByMeta.get(id) || []
+      for (const rid of repos) repoSet.add(rid)
+    }
+  }
+
   for (const [rid, repo] of derived.repoIndex.entries()) {
     const desc = typeof repo?.description === "string" ? repo.description : ""
     const topics = Array.isArray(repo?.topics) ? repo.topics.join(" ") : ""
-    const hay = `${rid} ${desc} ${topics}`.toLowerCase()
-    if (hay.includes(q)) repoIds.push(rid)
+    const lang = typeof repo?.language === "string" ? repo.language : ""
+    const a = derived.assignmentByRepo.get(rid) || null
+    const cids = Array.isArray(a?.category_ids) ? a.category_ids : []
+    const catNames = []
+    for (const cid of cids) {
+      if (typeof cid !== "string" || !cid) continue
+      const l = derived.labelsById.get(cid) || null
+      catNames.push(l?.name || cid)
+    }
+    const cats = catNames.join(" ")
+    const hay = `${rid} ${desc} ${topics} ${lang} ${cats}`.toLowerCase()
+    if (hay.includes(q)) repoSet.add(rid)
   }
-  repoIds.sort((a, b) => (derived.trendScoreByRepo.get(b) || 0) - (derived.trendScoreByRepo.get(a) || 0) || a.localeCompare(b))
 
-  const repoSet = new Set(repoIds)
-  const leafSet = new Set()
-  const metaSet = new Set()
+  const repoIds = Array.from(repoSet)
+  repoIds.sort((a, b) => (derived.trendScoreByRepo.get(b) || 0) - (derived.trendScoreByRepo.get(a) || 0) || a.localeCompare(b))
 
   for (const rid of repoIds) {
     const a = derived.assignmentByRepo.get(rid) || null
@@ -137,7 +166,7 @@ function computeSearchCache(derived) {
   }
 
   state.searchRepoIds = repoIds
-  state.searchRepoSet = repoSet
+  state.searchRepoSet = new Set(repoIds)
   state.searchLeafSet = leafSet
   state.searchMetaSet = metaSet
 }
@@ -167,6 +196,13 @@ function renderTray() {
       const text = document.createElement("span")
       text.textContent = rid
       pill.appendChild(text)
+      const stars = repo?.signals?.stars ?? repo?.stats?.stargazers_count
+      if (typeof stars === "number") {
+        const badge = document.createElement("span")
+        badge.className = "pill-star"
+        badge.textContent = `★ ${fmt.n(stars)}`
+        pill.appendChild(badge)
+      }
       trayPillsEl.appendChild(pill)
     }
     return
@@ -184,6 +220,15 @@ function renderTray() {
   const meta = d.labelsById.get(metaId)
   const leaf = d.labelsById.get(leafId)
   trayTitleEl.textContent = `${meta?.name || metaId} · ${leaf?.name || leafId}`
+
+  if (String(state.query || "").trim()) {
+    const backToSearch = document.createElement("button")
+    backToSearch.type = "button"
+    backToSearch.className = "pill pill-secondary"
+    backToSearch.textContent = "search results"
+    backToSearch.addEventListener("click", () => openSearchTray())
+    trayPillsEl.appendChild(backToSearch)
+  }
 
   const openList = document.createElement("a")
   openList.className = "pill pill-secondary"
@@ -1256,10 +1301,19 @@ searchEl.addEventListener("input", () => {
   state.forceSubAllMetaId = null
   computeSearchCache(state.data?.derived || null)
   if (String(state.query || "").trim()) {
-    if (state.trayMode !== "leaf") openSearchTray()
+    openSearchTray()
   } else {
     if (state.trayMode === "search") closeTray()
   }
+  clearSearchBtn.classList.toggle("is-hidden", !String(state.query || "").trim())
+  renderTray()
+})
+clearSearchBtn.addEventListener("click", () => {
+  state.query = ""
+  searchEl.value = ""
+  computeSearchCache(state.data?.derived || null)
+  clearSearchBtn.classList.add("is-hidden")
+  if (state.trayMode === "search") closeTray()
   renderTray()
 })
 storePathEl.addEventListener("keydown", (e) => {
