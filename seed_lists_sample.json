@@ -1,0 +1,7 @@
+{
+  "lists": {
+    "coding-agent": ["devskale/python-openutils", "devskale/solo-agent-lite"],
+    "infra": ["WireGuard/wireguard-tools"],
+    "docs": ["mdn/content"]
+  }
+}

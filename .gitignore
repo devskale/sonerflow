@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.DS_Store
+.store_*/
+.venv/
+.env
+*.log
+.ghsorter.json
+.ghsorter_cache/
+.ghsorter_store/
+.trae/

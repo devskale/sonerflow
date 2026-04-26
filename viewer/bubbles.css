@@ -1,0 +1,226 @@
+:root {
+  --bg: #06070a;
+  --panel: rgba(255, 255, 255, 0.06);
+  --stroke: rgba(255, 255, 255, 0.10);
+  --text: rgba(255, 255, 255, 0.92);
+  --muted: rgba(255, 255, 255, 0.66);
+  --faint: rgba(255, 255, 255, 0.44);
+  --accent: #7cf7c0;
+  --accent2: #6fb7ff;
+  --danger: #ff6b6b;
+  --shadow: 0 20px 80px rgba(0, 0, 0, 0.45);
+  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, "Apple Color Emoji",
+    "Segoe UI Emoji";
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--sans);
+  color: var(--text);
+  background:
+    radial-gradient(900px 600px at 15% -10%, rgba(124, 247, 192, 0.18), transparent 60%),
+    radial-gradient(900px 600px at 90% 10%, rgba(111, 183, 255, 0.16), transparent 58%),
+    radial-gradient(900px 600px at 40% 110%, rgba(255, 107, 107, 0.10), transparent 60%),
+    linear-gradient(180deg, #05060a, #070a10 40%, #04050a);
+  overflow: hidden;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: linear-gradient(180deg, rgba(7, 10, 16, 0.92), rgba(7, 10, 16, 0.60));
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--stroke);
+  padding: 14px 18px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 16px;
+  align-items: center;
+}
+
+.brand-title {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  font-size: 16px;
+}
+
+.brand-subtitle {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.controls {
+  display: flex;
+  gap: 12px;
+  align-items: end;
+  flex-wrap: wrap;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.label {
+  font-size: 11px;
+  color: var(--faint);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.input {
+  appearance: none;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: var(--text);
+  outline: none;
+  min-width: 220px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  appearance: none;
+  border: 1px solid rgba(124, 247, 192, 0.35);
+  background: rgba(124, 247, 192, 0.12);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+  height: 40px;
+  text-decoration: none;
+}
+
+.btn.btn-secondary {
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(124, 247, 192, 0.55);
+  background: rgba(124, 247, 192, 0.16);
+}
+
+.btn.btn-secondary:hover {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.status {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  text-align: right;
+  max-width: 360px;
+  line-height: 1.3;
+}
+
+.crumbs {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(0, 0, 0, 0.14);
+  height: 40px;
+}
+
+.crumbs b {
+  color: rgba(255, 255, 255, 0.90);
+  font-weight: 650;
+}
+
+.stage {
+  position: relative;
+  height: calc(100vh - 80px);
+}
+
+canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.hud {
+  position: absolute;
+  left: 18px;
+  bottom: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(0, 0, 0, 0.14);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--shadow);
+  border-radius: 16px;
+  padding: 10px 10px 8px;
+  max-width: 360px;
+}
+
+.hud-title {
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.hud-sub {
+  margin-top: 4px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.hud-help {
+  margin-top: 10px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.50);
+  line-height: 1.35;
+}
+
+.tooltip {
+  position: absolute;
+  pointer-events: none;
+  transform: translate(12px, 12px);
+  opacity: 0;
+  transition: opacity 120ms ease;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(12px);
+  border-radius: 14px;
+  padding: 9px 9px 7px;
+  max-width: 300px;
+  box-shadow: var(--shadow);
+}
+
+.tooltip.on {
+  opacity: 1;
+}
+
+.tooltip .t {
+  font-weight: 650;
+  font-size: 12px;
+}
+
+.tooltip .m {
+  margin-top: 4px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+}

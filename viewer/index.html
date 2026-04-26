@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ghsorter viewer</title>
+    <link rel="stylesheet" href="./styles.css?v=6" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-title">ghsorter</div>
+          <div class="brand-subtitle">category viewer</div>
+        </div>
+        <div class="controls">
+          <label class="field">
+            <span class="label">Store</span>
+            <input id="storePath" class="input" value="../.ghsorter_store" />
+          </label>
+          <button id="reloadBtn" class="btn">Reload</button>
+          <a class="btn btn-secondary" href="./bubbles.html">Bubbles</a>
+          <label class="field grow">
+            <span class="label">Search</span>
+            <input id="search" class="input" placeholder="repo name, description, topic…" />
+          </label>
+        </div>
+        <div class="status" id="status"></div>
+      </header>
+
+      <div class="layout">
+        <aside class="sidebar">
+          <div class="sidebar-head">
+            <div class="sidebar-title">Top Categories</div>
+            <div class="sidebar-meta" id="metaSummary"></div>
+          </div>
+          <div class="sidebar-tools">
+            <label class="field">
+              <span class="label">Filter</span>
+              <input id="metaSearch" class="input input-compact" placeholder="meta or leaf…" />
+            </label>
+          </div>
+          <div class="sidebar-list" id="metaList"></div>
+        </aside>
+
+        <main class="main">
+          <section class="panel">
+            <div class="panel-head">
+              <div class="panel-left">
+                <div class="panel-title" id="panelTitle">Loading…</div>
+                <div class="panel-subtitle" id="panelSubtitle"></div>
+              </div>
+              <div class="panel-right">
+                <label class="field">
+                  <span class="label">Sort</span>
+                  <select id="sort" class="input input-compact">
+                    <option value="score">Score</option>
+                    <option value="stars">Stars</option>
+                    <option value="recency">Recent</option>
+                    <option value="name">Name</option>
+                  </select>
+                </label>
+                <label class="toggle">
+                  <input id="lockedOnly" type="checkbox" />
+                  <span>Locked</span>
+                </label>
+                <label class="toggle">
+                  <input id="suggestedOnly" type="checkbox" />
+                  <span>Suggested</span>
+                </label>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div class="content">
+                <div class="leafs">
+                  <div class="leafs-tools">
+                    <label class="field">
+                      <span class="label">Leaf Filter</span>
+                      <input id="leafSearch" class="input input-compact" placeholder="leaf…" />
+                    </label>
+                  </div>
+                  <div id="leafList"></div>
+                </div>
+                <div class="repos">
+                  <div class="repos-head">
+                    <div class="repos-title" id="repoTitle">Repos</div>
+                    <div class="repos-meta" id="repoMeta"></div>
+                  </div>
+                  <div class="repos-list" id="repoList"></div>
+                  <div class="repos-foot">
+                    <button id="moreBtn" class="btn btn-secondary">Load more</button>
+                  </div>
+                </div>
+                <div class="topics">
+                  <div class="topics-head">
+                    <div class="topics-title">Topics</div>
+                    <div class="topics-meta" id="topicSummary"></div>
+                  </div>
+                  <div class="topics-tools">
+                    <label class="field">
+                      <span class="label">Topic Filter</span>
+                      <div class="topic-filter-row">
+                        <input id="topicSearch" class="input input-compact" placeholder="topic…" />
+                        <button id="clearTopicBtn" class="btn btn-secondary">Clear</button>
+                      </div>
+                    </label>
+                  </div>
+                  <div class="topics-list" id="topicList"></div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <script type="module" src="./app.js?v=6"></script>
+  </body>
+</html>

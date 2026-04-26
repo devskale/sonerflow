@@ -1,0 +1,22 @@
+[project]
+name = "ghsorter"
+version = "0.0.1"
+description = "Turns GitHub stars into steerable areas of interest."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "credgoo",
+    "hdbscan>=0.8.42",
+    "numpy>=2.4.4",
+    "scikit-learn>=1.8.0",
+]
+
+[project.scripts]
+ghsorter = "ghsorter.cli:main"
+
+[tool.uv]
+default-groups = []
+package = true
+
+[tool.uv.sources]
+credgoo = { git = "https://github.com/devskale/python-openutils", subdirectory = "packages/credgoo", rev = "main" }
