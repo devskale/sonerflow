@@ -270,7 +270,8 @@ function buildSubNodesForMeta(derived, metaNode, desiredLeafCount) {
       id: "leaf-more",
       kind: "more",
       name: "more…",
-      count: restCount,
+      count: rest.length,
+      repoCount: restCount,
       r: 10 + Math.sqrt(restCount / Math.max(1, restCount + maxCount)) * (base * 0.12),
       x: metaNode.x + (Math.random() - 0.5) * 20,
       y: metaNode.y + (Math.random() - 0.5) * 20,
@@ -663,10 +664,11 @@ function setTooltip(node, px, py) {
     return
   }
   const sub = typeof node?.subCount === "number" && node.kind === "meta" ? `${fmt.n(node.subCount)} sub · ` : ""
+  const more = node.kind === "more" ? `${fmt.n(node.count)} hidden · ${fmt.n(node.repoCount || 0)} repos` : ""
   tipEl.classList.add("on")
   tipEl.style.left = `${px}px`
   tipEl.style.top = `${py}px`
-  tipEl.innerHTML = `<div class="t">${node.name}</div><div class="m">${node.id} · ${sub}${fmt.n(node.count)} repos</div>`
+  tipEl.innerHTML = `<div class="t">${node.name}</div><div class="m">${node.id} · ${more || `${sub}${fmt.n(node.count)} repos`}</div>`
 }
 
 function setCrumbs(derived) {
