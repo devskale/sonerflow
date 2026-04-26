@@ -12,6 +12,10 @@ const crumbsEl = $("crumbs")
 const hudTitleEl = $("hudTitle")
 const hudSubEl = $("hudSub")
 const tipEl = $("tip")
+const trayEl = $("tray")
+const trayTitleEl = $("trayTitle")
+const trayCloseBtn = $("trayCloseBtn")
+const trayPillsEl = $("trayPills")
 
 const ctx = canvas.getContext("2d", { alpha: true })
 
@@ -35,6 +39,8 @@ const state = {
   subNodes: [],
   subMetaId: null,
   subLeafCount: 0,
+  trayMetaId: null,
+  trayLeafId: null,
   running: false,
 }
 
@@ -45,6 +51,103 @@ const fmt = {
 function smoothstep(edge0, edge1, x) {
   const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)))
   return t * t * (3 - 2 * t)
+}
+
+function isoToMs(s) {
+  if (typeof s !== "string" || !s) return null
+  const v = Date.parse(s)
+  return Number.isFinite(v) ? v : null
+}
+
+function daysBetweenMs(a, b) {
+  return Math.abs(a - b) / (1000 * 60 * 60 * 24)
+}
+
+function repoUrl(repoId, repo) {
+  if (repo && typeof repo.html_url === "string" && repo.html_url) return repo.html_url
+  return `https://github.com/${repoId}`
+}
+
+function trendScoreFor(repo) {
+  const spm = repo?.signals?.stars_per_month
+  const rec = repo?.signals?.recency_days
+  const stars = repo?.signals?.stars ?? repo?.stats?.stargazers_count
+  const starsOk = typeof stars === "number" ? stars : 0
+  const spmOk = typeof spm === "number" ? spm : 0
+  const recOk = typeof rec === "number" ? rec : 10_000
+  const recBoost = 1 / (1 + recOk / 30)
+  return spmOk * recBoost * Math.log1p(Math.max(0, starsOk))
+}
+
+function renderTray() {
+  const d = state.data?.derived
+  const leafId = state.trayLeafId
+  const metaId = state.trayMetaId
+  if (!d || !leafId || !metaId) {
+    trayEl.classList.add("hidden")
+    trayTitleEl.textContent = ""
+    trayPillsEl.innerHTML = ""
+    return
+  }
+
+  const meta = d.labelsById.get(metaId)
+  const leaf = d.labelsById.get(leafId)
+  trayTitleEl.textContent = `${meta?.name || metaId} · ${leaf?.name || leafId}`
+  trayPillsEl.innerHTML = ""
+  trayEl.classList.remove("hidden")
+
+  const openList = document.createElement("a")
+  openList.className = "pill pill-secondary"
+  openList.href = `./?meta=${encodeURIComponent(metaId)}&leaf=${encodeURIComponent(leafId)}`
+  openList.textContent = "open list"
+  trayPillsEl.appendChild(openList)
+
+  const repoIds = d.reposByLeaf.get(leafId) || []
+  const sorted = [...repoIds].sort((a, b) => (d.trendScoreByRepo.get(b) || 0) - (d.trendScoreByRepo.get(a) || 0) || a.localeCompare(b))
+  const top = sorted.slice(0, 120)
+  const nowMs = Date.now()
+  for (const rid of top) {
+    const repo = d.repoIndex.get(rid) || null
+    const score = d.trendScoreByRepo.get(rid) || 0
+    const isRising = typeof d.risingThreshold === "number" && score >= d.risingThreshold
+    const starredAtMs = isoToMs(repo?.starred_at)
+    const isNew = typeof starredAtMs === "number" && daysBetweenMs(nowMs, starredAtMs) <= 30
+
+    const pill = document.createElement("a")
+    pill.className = "pill"
+    pill.href = repoUrl(rid, repo)
+    pill.target = "_blank"
+    pill.rel = "noreferrer"
+
+    const text = document.createElement("span")
+    text.textContent = rid
+    pill.appendChild(text)
+
+    if (isNew) {
+      const dot = document.createElement("span")
+      dot.className = "pill-dot new"
+      pill.appendChild(dot)
+    }
+    if (isRising) {
+      const dot = document.createElement("span")
+      dot.className = "pill-dot rising"
+      pill.appendChild(dot)
+    }
+
+    trayPillsEl.appendChild(pill)
+  }
+}
+
+function openTray(metaId, leafId) {
+  state.trayMetaId = metaId
+  state.trayLeafId = leafId
+  renderTray()
+}
+
+function closeTray() {
+  state.trayMetaId = null
+  state.trayLeafId = null
+  renderTray()
 }
 
 function setStatus(text, kind = "ok") {
@@ -154,7 +257,32 @@ function buildDerived(labels, assignments, catalog) {
   meta.sort((a, b) => (metaCounts.get(b.id) || 0) - (metaCounts.get(a.id) || 0) || a.name.localeCompare(b.name))
   for (const [k, v] of leafByMeta.entries()) v.sort((a, b) => (leafCounts.get(b.id) || 0) - (leafCounts.get(a.id) || 0) || a.name.localeCompare(b.name))
 
-  return { labelsById, meta, leaf, assignmentByRepo, repoIndex, metaCounts, leafCounts, reposByMeta, reposByLeaf, leafByMeta }
+  const trendScoreByRepo = new Map()
+  const scores = []
+  for (const [rid, repo] of repoIndex.entries()) {
+    const s = trendScoreFor(repo)
+    trendScoreByRepo.set(rid, s)
+    if (s > 0) scores.push(s)
+  }
+  scores.sort((a, b) => a - b)
+  const p = 0.95
+  const idx = scores.length ? Math.min(scores.length - 1, Math.floor(scores.length * p)) : 0
+  const risingThreshold = scores.length ? scores[idx] : Infinity
+
+  return {
+    labelsById,
+    meta,
+    leaf,
+    assignmentByRepo,
+    repoIndex,
+    metaCounts,
+    leafCounts,
+    reposByMeta,
+    reposByLeaf,
+    leafByMeta,
+    trendScoreByRepo,
+    risingThreshold,
+  }
 }
 
 function addToMapCount(map, key, inc) {
@@ -781,6 +909,9 @@ function rebuild() {
   state.subNodes = []
   state.subMetaId = null
   state.subLeafCount = 0
+  state.trayMetaId = null
+  state.trayLeafId = null
+  renderTray()
   setCrumbs(state.data.derived)
 }
 
@@ -807,6 +938,7 @@ function drill(node) {
   if (!node || !state.data) return
   const resolved = typeof node?.id === "string" && node.id.startsWith("sub:") ? { ...node, id: node.id.slice(4) } : node
   if (resolved.kind === "meta") {
+    closeTray()
     state.mode = "leaf"
     state.metaId = resolved.id
     resetView()
@@ -814,9 +946,9 @@ function drill(node) {
     return
   }
   if (resolved.kind === "leaf") {
-    const meta = state.mode === "leaf" ? state.metaId : state.subMetaId || state.metaId || ""
-    const url = `./?meta=${encodeURIComponent(meta)}&leaf=${encodeURIComponent(resolved.id)}`
-    window.location.href = url
+    const meta = state.mode === "leaf" ? state.metaId : state.subMetaId || state.focusMetaId || ""
+    if (meta) openTray(meta, resolved.id)
+    return
   }
   if (resolved.kind === "more") {
     const meta = state.mode === "leaf" ? state.metaId : state.subMetaId || state.metaId || ""
@@ -826,6 +958,10 @@ function drill(node) {
 }
 
 function goBack() {
+  if (state.trayLeafId) {
+    closeTray()
+    return
+  }
   if (state.mode === "leaf") {
     state.mode = "meta"
     state.metaId = null
@@ -898,6 +1034,7 @@ canvas.addEventListener("wheel", (e) => {
 })
 
 reloadBtn.addEventListener("click", () => reload())
+trayCloseBtn.addEventListener("click", () => closeTray())
 storePathEl.addEventListener("keydown", (e) => {
   if (e.key === "Enter") reload()
 })

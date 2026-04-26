@@ -224,3 +224,96 @@ canvas {
   font-size: 12px;
   color: var(--muted);
 }
+
+.tray {
+  position: absolute;
+  right: 18px;
+  top: 18px;
+  width: min(520px, calc(100% - 36px));
+  max-height: calc(100% - 36px);
+  overflow: auto;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(0, 0, 0, 0.20);
+  backdrop-filter: blur(14px);
+  box-shadow: var(--shadow);
+  border-radius: 18px;
+  padding: 10px 10px 12px;
+}
+
+.tray.hidden {
+  display: none;
+}
+
+.tray-head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tray-title {
+  font-weight: 700;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.90);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tray-close {
+  height: 34px;
+  padding: 6px 10px;
+}
+
+.tray-pills {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pill {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.90);
+  text-decoration: none;
+  padding: 7px 10px;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1;
+  max-width: 100%;
+}
+
+.pill:hover {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.pill.pill-secondary {
+  border-color: rgba(124, 247, 192, 0.35);
+  background: rgba(124, 247, 192, 0.10);
+}
+
+.pill.pill-secondary:hover {
+  border-color: rgba(124, 247, 192, 0.55);
+  background: rgba(124, 247, 192, 0.14);
+}
+
+.pill-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.pill-dot.new {
+  background: rgba(111, 183, 255, 0.92);
+}
+
+.pill-dot.rising {
+  background: rgba(124, 247, 192, 0.92);
+}

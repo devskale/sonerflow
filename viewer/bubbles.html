@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ghsorter bubbles</title>
-    <link rel="stylesheet" href="./bubbles.css?v=13" />
+    <link rel="stylesheet" href="./bubbles.css?v=14" />
   </head>
   <body>
     <header class="topbar">
@@ -36,8 +36,15 @@
         </div>
       </div>
       <div class="tooltip" id="tip"></div>
+      <div class="tray hidden" id="tray">
+        <div class="tray-head">
+          <div class="tray-title" id="trayTitle"></div>
+          <button class="btn btn-secondary tray-close" id="trayCloseBtn" type="button">Close</button>
+        </div>
+        <div class="tray-pills" id="trayPills"></div>
+      </div>
     </main>
 
-    <script type="module" src="./bubbles.js?v=13"></script>
+    <script type="module" src="./bubbles.js?v=14"></script>
   </body>
 </html>
