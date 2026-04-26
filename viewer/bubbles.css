@@ -183,6 +183,17 @@ body[data-view="leaf"] {
   background: rgba(255, 255, 255, 0.08);
 }
 
+.btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+  transform: none;
+}
+
+.btn.btn-secondary:disabled:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+}
+
 .status {
   font-family: var(--mono);
   font-size: 12px;

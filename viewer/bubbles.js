@@ -324,7 +324,6 @@ function updateModeUi(derived) {
     state.uiFocusId = focusId
     document.body.dataset.view = view
     modeChipEl.textContent = chip
-    backBtn.classList.toggle("is-hidden", view !== "leaf")
     if (view === "top") {
       setFocusTheme("top", 0)
       watermarkEl.textContent = ""
@@ -345,6 +344,8 @@ function updateModeUi(derived) {
       watermarkEl.classList.remove("hidden")
     }
   }
+
+  backBtn.disabled = view === "top" && !state.trayMode
 
   const q = String(state.query || "").trim()
   const params = new URLSearchParams()
@@ -430,6 +431,10 @@ function buildDerived(labels, assignments, catalog) {
 
   const metaCounts = new Map()
   const leafCounts = new Map()
+  const metaImpact = new Map()
+  const leafImpact = new Map()
+  const metaStars = new Map()
+  const leafStars = new Map()
   const reposByMeta = new Map()
   const reposByLeaf = new Map()
   const leafByMeta = new Map()
@@ -443,9 +448,21 @@ function buildDerived(labels, assignments, catalog) {
   for (const a of assignments || []) {
     const rid = typeof a?.repo_id === "string" ? a.repo_id : null
     const cids = Array.isArray(a?.category_ids) ? a.category_ids.filter((x) => typeof x === "string" && x) : []
+    const repo = rid ? repoIndex.get(rid) || null : null
+    const stars = repo?.signals?.stars ?? repo?.stats?.stargazers_count
+    const starsOk = typeof stars === "number" ? stars : 0
+    const impact = Math.log1p(Math.max(0, starsOk))
     for (const cid of cids) {
       if (cid.startsWith("meta-")) metaCounts.set(cid, (metaCounts.get(cid) || 0) + 1)
       if (cid.startsWith("leaf-")) leafCounts.set(cid, (leafCounts.get(cid) || 0) + 1)
+      if (impact > 0) {
+        if (cid.startsWith("meta-")) metaImpact.set(cid, (metaImpact.get(cid) || 0) + impact)
+        if (cid.startsWith("leaf-")) leafImpact.set(cid, (leafImpact.get(cid) || 0) + impact)
+      }
+      if (starsOk > 0) {
+        if (cid.startsWith("meta-")) metaStars.set(cid, (metaStars.get(cid) || 0) + starsOk)
+        if (cid.startsWith("leaf-")) leafStars.set(cid, (leafStars.get(cid) || 0) + starsOk)
+      }
       if (rid) {
         if (cid.startsWith("meta-")) {
           if (!reposByMeta.has(cid)) reposByMeta.set(cid, [])
@@ -482,6 +499,10 @@ function buildDerived(labels, assignments, catalog) {
     repoIndex,
     metaCounts,
     leafCounts,
+    metaImpact,
+    leafImpact,
+    metaStars,
+    leafStars,
     reposByMeta,
     reposByLeaf,
     leafByMeta,
@@ -573,7 +594,7 @@ function buildSubNodesForMeta(derived, metaNode, desiredLeafCount) {
   const allLeafs = derived.leafByMeta.get(metaNode.id) || []
   const leafs = allLeafs.slice(0, desiredLeafCount)
   const rest = allLeafs.slice(desiredLeafCount)
-  const maxCount = Math.max(1, ...leafs.map((l) => derived.leafCounts.get(l.id) || 0))
+  const maxImpact = Math.max(1, ...leafs.map((l) => derived.leafImpact.get(l.id) || 0))
 
   const out = []
   const base = Math.max(80, metaNode.r * 1.4)
@@ -581,7 +602,8 @@ function buildSubNodesForMeta(derived, metaNode, desiredLeafCount) {
   for (let i = 0; i < leafs.length; i++) {
     const l = leafs[i]
     const count = derived.leafCounts.get(l.id) || 0
-    const r = 8 + Math.sqrt(count / maxCount) * (base * 0.16)
+    const impact = derived.leafImpact.get(l.id) || 0
+    const r = 8 + Math.sqrt(impact / maxImpact) * (base * 0.18)
     const t = (i + 0.5) / Math.max(1, leafs.length)
     const a = i * ga
     const rr = Math.sqrt(t) * base * 0.32
@@ -590,6 +612,7 @@ function buildSubNodesForMeta(derived, metaNode, desiredLeafCount) {
       kind: "leaf",
       name: l.name || l.id,
       count,
+      stars: derived.leafStars.get(l.id) || 0,
       r,
       x: metaNode.x + Math.cos(a) * rr + (Math.random() - 0.5) * 18,
       y: metaNode.y + Math.sin(a) * rr + (Math.random() - 0.5) * 18,
@@ -601,14 +624,18 @@ function buildSubNodesForMeta(derived, metaNode, desiredLeafCount) {
 
   if (rest.length) {
     let restCount = 0
-    for (const l of rest) restCount += derived.leafCounts.get(l.id) || 0
+    let restImpact = 0
+    for (const l of rest) {
+      restCount += derived.leafCounts.get(l.id) || 0
+      restImpact += derived.leafImpact.get(l.id) || 0
+    }
     out.push({
       id: "leaf-more",
       kind: "more",
       name: "more…",
       count: rest.length,
       repoCount: restCount,
-      r: 10 + Math.sqrt(restCount / Math.max(1, restCount + maxCount)) * (base * 0.12),
+      r: 10 + Math.sqrt(restImpact / Math.max(1, restImpact + maxImpact)) * (base * 0.14),
       x: metaNode.x + (Math.random() - 0.5) * 20,
       y: metaNode.y + (Math.random() - 0.5) * 20,
       vx: 0,
@@ -700,12 +727,13 @@ function mkNodes(derived) {
 
   if (state.mode === "meta") {
     const items = derived.meta
-    const maxCount = Math.max(1, ...items.map((m) => derived.metaCounts.get(m.id) || 0))
+    const maxImpact = Math.max(1, ...items.map((m) => derived.metaImpact.get(m.id) || 0))
     for (let i = 0; i < items.length; i++) {
       const m = items[i]
       const count = derived.metaCounts.get(m.id) || 0
       const subCount = derived.leafByMeta.get(m.id)?.length || 0
-      const r = 18 + Math.sqrt(count / maxCount) * (base * 0.26)
+      const impact = derived.metaImpact.get(m.id) || 0
+      const r = 18 + Math.sqrt(impact / maxImpact) * (base * 0.30)
       const t = (i + 0.5) / Math.max(1, items.length)
       const a = i * ga
       const rr = Math.sqrt(t) * base * 0.70
@@ -715,6 +743,7 @@ function mkNodes(derived) {
         name: m.name || m.id,
         count,
         subCount,
+        stars: derived.metaStars.get(m.id) || 0,
         r,
         x: Math.cos(a) * rr + (Math.random() - 0.5) * 70,
         y: Math.sin(a) * rr + (Math.random() - 0.5) * 70,
@@ -728,11 +757,12 @@ function mkNodes(derived) {
     const maxLeaf = 60
     const leafs = allLeafs.slice(0, maxLeaf)
     const rest = allLeafs.slice(maxLeaf)
-    const maxCount = Math.max(1, ...leafs.map((l) => derived.leafCounts.get(l.id) || 0))
+    const maxImpact = Math.max(1, ...leafs.map((l) => derived.leafImpact.get(l.id) || 0))
     for (let i = 0; i < leafs.length; i++) {
       const l = leafs[i]
       const count = derived.leafCounts.get(l.id) || 0
-      const r = 14 + Math.sqrt(count / maxCount) * (base * 0.20)
+      const impact = derived.leafImpact.get(l.id) || 0
+      const r = 14 + Math.sqrt(impact / maxImpact) * (base * 0.22)
       const t = (i + 0.5) / Math.max(1, leafs.length)
       const a = i * ga
       const rr = Math.sqrt(t) * base * 0.62
@@ -741,6 +771,7 @@ function mkNodes(derived) {
         kind: "leaf",
         name: l.name || l.id,
         count,
+        stars: derived.leafStars.get(l.id) || 0,
         r,
         x: Math.cos(a) * rr + (Math.random() - 0.5) * 70,
         y: Math.sin(a) * rr + (Math.random() - 0.5) * 70,
@@ -751,13 +782,17 @@ function mkNodes(derived) {
     }
     if (rest.length) {
       let restCount = 0
-      for (const l of rest) restCount += derived.leafCounts.get(l.id) || 0
+      let restImpact = 0
+      for (const l of rest) {
+        restCount += derived.leafCounts.get(l.id) || 0
+        restImpact += derived.leafImpact.get(l.id) || 0
+      }
       nodes.push({
         id: "leaf-more",
         kind: "more",
         name: "more…",
         count: restCount,
-        r: 18 + Math.sqrt(restCount / Math.max(1, restCount + (derived.leafCounts.get(leafs[0]?.id) || 1))) * (base * 0.16),
+        r: 18 + Math.sqrt(restImpact / Math.max(1, restImpact + maxImpact)) * (base * 0.18),
         x: (Math.random() - 0.5) * 80,
         y: (Math.random() - 0.5) * 80,
         vx: 0,
@@ -1038,10 +1073,11 @@ function setTooltip(node, px, py) {
   }
   const sub = typeof node?.subCount === "number" && node.kind === "meta" ? `${fmt.n(node.subCount)} sub · ` : ""
   const more = node.kind === "more" ? `${fmt.n(node.count)} hidden · ${fmt.n(node.repoCount || 0)} repos` : ""
+  const stars = typeof node?.stars === "number" && node.stars > 0 ? ` · ★ ${fmt.n(node.stars)}` : ""
   tipEl.classList.add("on")
   tipEl.style.left = `${px}px`
   tipEl.style.top = `${py}px`
-  tipEl.innerHTML = `<div class="t">${node.name}</div><div class="m">${node.id} · ${more || `${sub}${fmt.n(node.count)} repos`}</div>`
+  tipEl.innerHTML = `<div class="t">${node.name}</div><div class="m">${node.id} · ${more || `${sub}${fmt.n(node.count)} repos`}${stars}</div>`
 }
 
 function setCrumbs(derived) {
@@ -1225,6 +1261,15 @@ function goBack() {
   if (state.mode === "leaf") {
     state.mode = "meta"
     state.metaId = null
+    resetView()
+    rebuild()
+    return
+  }
+  if (state.mode === "meta" && state.zoom > 1.05) {
+    state.focusMetaId = null
+    state.focusWantedId = null
+    state.focusWantedAt = 0
+    state.forceSubAllMetaId = null
     resetView()
     rebuild()
   }
