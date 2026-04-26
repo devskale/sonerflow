@@ -14,6 +14,7 @@ const modeChipEl = $("modeChip")
 const hudTitleEl = $("hudTitle")
 const hudSubEl = $("hudSub")
 const tipEl = $("tip")
+const watermarkEl = $("watermark")
 const trayEl = $("tray")
 const trayTitleEl = $("trayTitle")
 const trayCloseBtn = $("trayCloseBtn")
@@ -155,17 +156,24 @@ function closeTray() {
   renderTray()
 }
 
+function setFocusTheme(name, depth) {
+  const c = colorFor(name, depth)
+  document.body.style.setProperty("--focus-h", String(c.hue))
+  document.body.style.setProperty("--focus-h2", String((c.hue + 38) % 360))
+}
+
 function updateModeUi(derived) {
   const subAlpha = state.mode === "meta" ? smoothstep(1.15, 1.95, state.zoom) : 0
   const focusId = state.focusMetaId
   const focus = focusId ? derived?.labelsById?.get(focusId) : null
   const focusName = focus?.name || focusId || ""
+  const leafName = derived?.labelsById?.get(state.metaId)?.name || state.metaId || ""
 
   let view = "top"
   let chip = "TOP"
   if (state.mode === "leaf") {
     view = "leaf"
-    chip = `IN · ${derived?.labelsById?.get(state.metaId)?.name || state.metaId || ""}`
+    chip = `IN · ${leafName}`
   } else if (subAlpha > 0.25 && focusName) {
     view = "focus"
     chip = `IN · ${focusName}`
@@ -178,13 +186,23 @@ function updateModeUi(derived) {
     modeChipEl.textContent = chip
     backBtn.classList.toggle("is-hidden", view !== "leaf")
     if (view === "top") {
+      setFocusTheme("top", 0)
+      watermarkEl.textContent = ""
+      watermarkEl.classList.add("hidden")
       crumbsEl.innerHTML = `<b>top</b> · click to zoom`
       hudTitleEl.textContent = `Top-level categories`
       hudSubEl.textContent = `${fmt.n(derived?.meta?.length || 0)} metas`
     } else if (view === "focus") {
+      setFocusTheme(focusName, 0)
+      watermarkEl.textContent = focusName
+      watermarkEl.classList.remove("hidden")
       crumbsEl.innerHTML = `<b>top</b> ▸ <b>${focusName}</b> · click bubble to enter`
       hudTitleEl.textContent = `Preview · ${focusName}`
       hudSubEl.textContent = `${fmt.n(derived?.leafByMeta?.get(focusId)?.length || 0)} subbubbles`
+    } else if (view === "leaf") {
+      setFocusTheme(leafName, 0)
+      watermarkEl.textContent = leafName
+      watermarkEl.classList.remove("hidden")
     }
   }
 }

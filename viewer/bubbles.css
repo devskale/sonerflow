@@ -8,6 +8,8 @@
   --accent: #7cf7c0;
   --accent2: #6fb7ff;
   --danger: #ff6b6b;
+  --focus-h: 160;
+  --focus-h2: 205;
   --shadow: 0 20px 80px rgba(0, 0, 0, 0.45);
   --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, "Apple Color Emoji",
@@ -45,16 +47,16 @@ body[data-view="top"] {
 
 body[data-view="focus"] {
   background:
-    radial-gradient(900px 650px at 50% 15%, rgba(111, 183, 255, 0.22), transparent 60%),
-    radial-gradient(900px 650px at 20% 80%, rgba(124, 247, 192, 0.12), transparent 62%),
+    radial-gradient(900px 650px at 50% 15%, hsl(var(--focus-h2) 80% 70% / 0.22), transparent 60%),
+    radial-gradient(900px 650px at 20% 80%, hsl(var(--focus-h) 80% 70% / 0.14), transparent 62%),
     radial-gradient(900px 650px at 90% 90%, rgba(255, 107, 107, 0.10), transparent 62%),
     linear-gradient(180deg, #04060b, #060a14 42%, #04050a);
 }
 
 body[data-view="leaf"] {
   background:
-    radial-gradient(900px 650px at 30% 10%, rgba(124, 247, 192, 0.22), transparent 60%),
-    radial-gradient(900px 650px at 90% 20%, rgba(111, 183, 255, 0.12), transparent 62%),
+    radial-gradient(900px 650px at 30% 10%, hsl(var(--focus-h) 80% 70% / 0.22), transparent 60%),
+    radial-gradient(900px 650px at 90% 20%, hsl(var(--focus-h2) 80% 70% / 0.12), transparent 62%),
     radial-gradient(900px 650px at 50% 110%, rgba(255, 107, 107, 0.12), transparent 62%),
     linear-gradient(180deg, #04070a, #06100d 44%, #04050a);
 }
@@ -215,6 +217,30 @@ body[data-view="leaf"] .modechip {
 .stage {
   position: relative;
   height: calc(100vh - 80px);
+}
+
+.watermark {
+  position: absolute;
+  left: 18px;
+  top: 18px;
+  right: 18px;
+  pointer-events: none;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  font-size: clamp(18px, 3.2vw, 44px);
+  line-height: 1.02;
+  opacity: 0.16;
+  color: hsl(var(--focus-h) 80% 78% / 1);
+  text-shadow: 0 20px 90px rgba(0, 0, 0, 0.60);
+  mix-blend-mode: screen;
+  filter: blur(0.1px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.watermark.hidden {
+  display: none;
 }
 
 canvas {
