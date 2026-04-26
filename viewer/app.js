@@ -59,7 +59,7 @@ async function fetchJson(url) {
 
 function normalizeLabelName(s) {
   if (typeof s !== "string") return ""
-  return s.replaceAll("claude-code", "coding-agent")
+  return s.replaceAll("claude-code", "coding-agent").replaceAll("llm", "genai")
 }
 
 function buildIndex(catalog) {
