@@ -646,9 +646,10 @@ function buildSubNodesForMeta(derived, metaNode, desiredLeafCount) {
 
   let sumArea = 0
   for (const n of out) sumArea += Math.PI * n.r * n.r
-  const bound = Math.max(30, metaNode.r * 0.92)
+  const bound = Math.max(30, metaNode.r * 0.96)
   const avail = Math.PI * bound * bound
-  const scale = Math.min(1, Math.sqrt((avail * 0.46) / Math.max(1, sumArea)))
+  const targetFill = 0.34
+  const scale = Math.min(1, Math.sqrt((avail * targetFill) / Math.max(1, sumArea)))
   if (scale < 1) {
     for (const n of out) n.r *= scale
   }
@@ -658,32 +659,44 @@ function buildSubNodesForMeta(derived, metaNode, desiredLeafCount) {
 
 function tickSubNodes(subNodes, metaNode, alpha) {
   if (!subNodes.length) return
-  const damping = 0.86
-  const centerPull = 0.010 * Math.max(0.25, alpha)
-  const padExtra = 8
-  const bound = Math.max(30, metaNode.r * 0.92)
+  const damping = 0.84
+  const centerPull = 0.004 * Math.max(0.25, alpha)
+  const bandPull = 0.006 * Math.max(0.25, alpha)
+  const padExtra = 10 + Math.min(12, subNodes.length * 0.35)
+  const bound = Math.max(30, metaNode.r * 0.96)
+  const targetR = bound * 0.55
 
   for (const n of subNodes) {
     n.vx += (metaNode.x - n.x) * centerPull
     n.vy += (metaNode.y - n.y) * centerPull
+    const dx = n.x - metaNode.x
+    const dy = n.y - metaNode.y
+    const dist = Math.hypot(dx, dy) || 0.0001
+    const nx = dx / dist
+    const ny = dy / dist
+    const k = (targetR - dist) * bandPull
+    n.vx += nx * k
+    n.vy += ny * k
   }
 
-  for (let i = 0; i < subNodes.length; i++) {
-    for (let j = i + 1; j < subNodes.length; j++) {
-      const a = subNodes[i]
-      const b = subNodes[j]
-      const dx = b.x - a.x
-      const dy = b.y - a.y
-      const dist = Math.hypot(dx, dy) || 0.0001
-      const nx = dx / dist
-      const ny = dy / dist
-      const min = a.r + b.r + padExtra
-      if (dist >= min) continue
-      const push = (min - dist) * 0.08
-      a.vx -= nx * push
-      a.vy -= ny * push
-      b.vx += nx * push
-      b.vy += ny * push
+  for (let pass = 0; pass < 2; pass++) {
+    for (let i = 0; i < subNodes.length; i++) {
+      for (let j = i + 1; j < subNodes.length; j++) {
+        const a = subNodes[i]
+        const b = subNodes[j]
+        const dx = b.x - a.x
+        const dy = b.y - a.y
+        const dist = Math.hypot(dx, dy) || 0.0001
+        const nx = dx / dist
+        const ny = dy / dist
+        const min = a.r + b.r + padExtra
+        if (dist >= min) continue
+        const push = (min - dist) * 0.16
+        a.vx -= nx * push
+        a.vy -= ny * push
+        b.vx += nx * push
+        b.vy += ny * push
+      }
     }
   }
 
