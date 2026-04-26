@@ -373,19 +373,22 @@ function buildSubNodesForMeta(derived, metaNode, desiredLeafCount) {
 
   const out = []
   const base = Math.max(80, metaNode.r * 1.4)
+  const ga = 2.399963229728653
   for (let i = 0; i < leafs.length; i++) {
     const l = leafs[i]
     const count = derived.leafCounts.get(l.id) || 0
     const r = 8 + Math.sqrt(count / maxCount) * (base * 0.16)
-    const a = (i / Math.max(1, leafs.length)) * Math.PI * 2
+    const t = (i + 0.5) / Math.max(1, leafs.length)
+    const a = i * ga
+    const rr = Math.sqrt(t) * base * 0.32
     out.push({
       id: l.id,
       kind: "leaf",
       name: l.name || l.id,
       count,
       r,
-      x: metaNode.x + Math.cos(a) * base * 0.18 + (Math.random() - 0.5) * 20,
-      y: metaNode.y + Math.sin(a) * base * 0.18 + (Math.random() - 0.5) * 20,
+      x: metaNode.x + Math.cos(a) * rr + (Math.random() - 0.5) * 18,
+      y: metaNode.y + Math.sin(a) * rr + (Math.random() - 0.5) * 18,
       vx: 0,
       vy: 0,
       color: colorFor(l.name, 1),
@@ -412,9 +415,9 @@ function buildSubNodesForMeta(derived, metaNode, desiredLeafCount) {
 
   let sumArea = 0
   for (const n of out) sumArea += Math.PI * n.r * n.r
-  const bound = Math.max(26, metaNode.r * 0.86)
+  const bound = Math.max(30, metaNode.r * 0.92)
   const avail = Math.PI * bound * bound
-  const scale = Math.min(1, Math.sqrt((avail * 0.54) / Math.max(1, sumArea)))
+  const scale = Math.min(1, Math.sqrt((avail * 0.46) / Math.max(1, sumArea)))
   if (scale < 1) {
     for (const n of out) n.r *= scale
   }
@@ -427,7 +430,7 @@ function tickSubNodes(subNodes, metaNode, alpha) {
   const damping = 0.86
   const centerPull = 0.010 * Math.max(0.25, alpha)
   const padExtra = 8
-  const bound = Math.max(26, metaNode.r * 0.86)
+  const bound = Math.max(30, metaNode.r * 0.92)
 
   for (const n of subNodes) {
     n.vx += (metaNode.x - n.x) * centerPull
@@ -489,6 +492,7 @@ function mkNodes(derived) {
   const h = canvas.getBoundingClientRect().height
   const base = Math.min(w, h) * 0.38
   const packRadius = Math.min(w, h) * 0.44
+  const ga = 2.399963229728653
 
   if (state.mode === "meta") {
     const items = derived.meta
@@ -498,7 +502,9 @@ function mkNodes(derived) {
       const count = derived.metaCounts.get(m.id) || 0
       const subCount = derived.leafByMeta.get(m.id)?.length || 0
       const r = 18 + Math.sqrt(count / maxCount) * (base * 0.26)
-      const a = (i / Math.max(1, items.length)) * Math.PI * 2
+      const t = (i + 0.5) / Math.max(1, items.length)
+      const a = i * ga
+      const rr = Math.sqrt(t) * base * 0.70
       nodes.push({
         id: m.id,
         kind: "meta",
@@ -506,8 +512,8 @@ function mkNodes(derived) {
         count,
         subCount,
         r,
-        x: Math.cos(a) * base * 0.55 + (Math.random() - 0.5) * 60,
-        y: Math.sin(a) * base * 0.55 + (Math.random() - 0.5) * 60,
+        x: Math.cos(a) * rr + (Math.random() - 0.5) * 70,
+        y: Math.sin(a) * rr + (Math.random() - 0.5) * 70,
         vx: 0,
         vy: 0,
         color: colorFor(m.name, 0),
@@ -523,15 +529,17 @@ function mkNodes(derived) {
       const l = leafs[i]
       const count = derived.leafCounts.get(l.id) || 0
       const r = 14 + Math.sqrt(count / maxCount) * (base * 0.20)
-      const a = (i / Math.max(1, leafs.length)) * Math.PI * 2
+      const t = (i + 0.5) / Math.max(1, leafs.length)
+      const a = i * ga
+      const rr = Math.sqrt(t) * base * 0.62
       nodes.push({
         id: l.id,
         kind: "leaf",
         name: l.name || l.id,
         count,
         r,
-        x: Math.cos(a) * base * 0.50 + (Math.random() - 0.5) * 60,
-        y: Math.sin(a) * base * 0.50 + (Math.random() - 0.5) * 60,
+        x: Math.cos(a) * rr + (Math.random() - 0.5) * 70,
+        y: Math.sin(a) * rr + (Math.random() - 0.5) * 70,
         vx: 0,
         vy: 0,
         color: colorFor(l.name, 1),
@@ -558,7 +566,7 @@ function mkNodes(derived) {
   let sumArea = 0
   for (const n of nodes) sumArea += Math.PI * n.r * n.r
   const availArea = Math.PI * packRadius * packRadius
-  const scale = Math.min(1, Math.sqrt((availArea * 0.58) / Math.max(1, sumArea)))
+  const scale = Math.min(1, Math.sqrt((availArea * 0.54) / Math.max(1, sumArea)))
   if (scale < 1) {
     for (const n of nodes) n.r *= scale
   }
@@ -721,6 +729,9 @@ function draw(nodes) {
 
   ctx.globalAlpha = 1
   if (focusMeta && subAlpha > 0 && state.subNodes.length) {
+    const sorted = [...state.subNodes].sort((a, b) => b.r - a.r)
+    const keepLabels = new Set(sorted.slice(0, 12).map((n) => n.id))
+    const boxes = []
     for (const n of state.subNodes) {
       const isHover = hover && hover.id === n.id
       const c = n.color
@@ -738,18 +749,29 @@ function draw(nodes) {
       ctx.stroke()
       ctx.shadowBlur = 0
 
-      const showLabel = isHover || (n.r * state.zoom >= 22 && subAlpha > 0.55)
-      if (showLabel) {
+      const wantLabel = isHover || (keepLabels.has(n.id) && n.r * state.zoom >= 22 && subAlpha > 0.72)
+      if (wantLabel) {
         ctx.fillStyle = "rgba(255,255,255,0.86)"
-        ctx.font = `650 ${Math.max(9, Math.min(11, n.r * 0.26))}px ${getComputedStyle(document.documentElement).getPropertyValue(
-          "--sans"
-        )}`
+        const fontSize = Math.max(9, Math.min(11, n.r * 0.26))
+        ctx.font = `650 ${fontSize}px ${getComputedStyle(document.documentElement).getPropertyValue("--sans")}`
         ctx.textAlign = "center"
         ctx.textBaseline = "middle"
         const text = String(n.name || n.id)
         const maxChars = Math.max(8, Math.floor(n.r * 0.70))
         const label = text.length > maxChars ? text.slice(0, maxChars - 1) + "…" : text
-        ctx.fillText(label, n.x, n.y - 5)
+        const w = ctx.measureText(label).width
+        const box = { x0: n.x - w / 2 - 3, y0: n.y - 5 - fontSize / 2 - 2, x1: n.x + w / 2 + 3, y1: n.y - 5 + fontSize / 2 + 2 }
+        let ok = true
+        for (const b of boxes) {
+          if (!(box.x1 < b.x0 || box.x0 > b.x1 || box.y1 < b.y0 || box.y0 > b.y1)) {
+            ok = false
+            break
+          }
+        }
+        if (ok) {
+          boxes.push(box)
+          ctx.fillText(label, n.x, n.y - 5)
+        }
         ctx.fillStyle = "rgba(255,255,255,0.60)"
         ctx.font = `500 ${Math.max(8, Math.min(10, n.r * 0.22))}px ${getComputedStyle(document.documentElement).getPropertyValue("--mono")}`
         ctx.fillText(n.kind === "meta" ? fmt.n(n.subCount || 0) : fmt.n(n.count), n.x, n.y + 10)
