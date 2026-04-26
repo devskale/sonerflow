@@ -5,6 +5,7 @@ __pycache__/
 .venv/
 .env
 *.log
+*.egg-info/
 .ghsorter.json
 .ghsorter_cache/
 .ghsorter_store/
