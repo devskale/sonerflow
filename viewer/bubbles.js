@@ -47,8 +47,13 @@ const state = {
   forceSubAllMetaId: null,
   trayMetaId: null,
   trayLeafId: null,
+  trayMode: null,
   query: "",
   trayQuery: "",
+  searchRepoIds: [],
+  searchRepoSet: new Set(),
+  searchLeafSet: new Set(),
+  searchMetaSet: new Set(),
   uiView: "",
   uiFocusId: null,
   running: false,
@@ -94,11 +99,85 @@ function trendScoreFor(repo) {
   return spmOk * recBoost * Math.log1p(Math.max(0, starsOk))
 }
 
+function computeSearchCache(derived) {
+  const q = String(state.query || "").trim().toLowerCase()
+  if (!derived || !q) {
+    state.searchRepoIds = []
+    state.searchRepoSet = new Set()
+    state.searchLeafSet = new Set()
+    state.searchMetaSet = new Set()
+    return
+  }
+
+  const repoIds = []
+  for (const [rid, repo] of derived.repoIndex.entries()) {
+    const desc = typeof repo?.description === "string" ? repo.description : ""
+    const topics = Array.isArray(repo?.topics) ? repo.topics.join(" ") : ""
+    const hay = `${rid} ${desc} ${topics}`.toLowerCase()
+    if (hay.includes(q)) repoIds.push(rid)
+  }
+  repoIds.sort((a, b) => (derived.trendScoreByRepo.get(b) || 0) - (derived.trendScoreByRepo.get(a) || 0) || a.localeCompare(b))
+
+  const repoSet = new Set(repoIds)
+  const leafSet = new Set()
+  const metaSet = new Set()
+
+  for (const rid of repoIds) {
+    const a = derived.assignmentByRepo.get(rid) || null
+    const cids = Array.isArray(a?.category_ids) ? a.category_ids : []
+    for (const cid of cids) {
+      if (typeof cid !== "string" || !cid) continue
+      if (cid.startsWith("leaf-")) {
+        leafSet.add(cid)
+        const leaf = derived.labelsById.get(cid) || null
+        const pid = typeof leaf?.parent_id === "string" ? leaf.parent_id : null
+        if (pid) metaSet.add(pid)
+      }
+      if (cid.startsWith("meta-")) metaSet.add(cid)
+    }
+  }
+
+  state.searchRepoIds = repoIds
+  state.searchRepoSet = repoSet
+  state.searchLeafSet = leafSet
+  state.searchMetaSet = metaSet
+}
+
 function renderTray() {
   const d = state.data?.derived
+  if (!d || !state.trayMode) {
+    trayEl.classList.add("hidden")
+    trayTitleEl.textContent = ""
+    trayPillsEl.innerHTML = ""
+    return
+  }
+
+  trayPillsEl.innerHTML = ""
+  trayEl.classList.remove("hidden")
+
+  if (state.trayMode === "search") {
+    const q = String(state.query || "").trim()
+    trayTitleEl.textContent = `Search · ${q || "…" } · ${fmt.n(state.searchRepoIds.length)} repos`
+    const q2 = String(state.trayQuery || "").trim().toLowerCase()
+    const ids = q2 ? state.searchRepoIds.filter((rid) => isTextMatch(rid, q2)) : state.searchRepoIds
+    for (const rid of ids.slice(0, 200)) {
+      const repo = d.repoIndex.get(rid) || null
+      const pill = document.createElement("a")
+      pill.className = "pill"
+      pill.href = repoUrl(rid, repo)
+      pill.target = "_blank"
+      pill.rel = "noreferrer"
+      const text = document.createElement("span")
+      text.textContent = rid
+      pill.appendChild(text)
+      trayPillsEl.appendChild(pill)
+    }
+    return
+  }
+
   const leafId = state.trayLeafId
   const metaId = state.trayMetaId
-  if (!d || !leafId || !metaId) {
+  if (!leafId || !metaId) {
     trayEl.classList.add("hidden")
     trayTitleEl.textContent = ""
     trayPillsEl.innerHTML = ""
@@ -108,8 +187,6 @@ function renderTray() {
   const meta = d.labelsById.get(metaId)
   const leaf = d.labelsById.get(leafId)
   trayTitleEl.textContent = `${meta?.name || metaId} · ${leaf?.name || leafId}`
-  trayPillsEl.innerHTML = ""
-  trayEl.classList.remove("hidden")
 
   const openList = document.createElement("a")
   openList.className = "pill pill-secondary"
@@ -164,12 +241,21 @@ function renderTray() {
 }
 
 function openTray(metaId, leafId) {
+  state.trayMode = "leaf"
   state.trayMetaId = metaId
   state.trayLeafId = leafId
   renderTray()
 }
 
+function openSearchTray() {
+  state.trayMode = "search"
+  state.trayMetaId = null
+  state.trayLeafId = null
+  renderTray()
+}
+
 function closeTray() {
+  state.trayMode = null
   state.trayMetaId = null
   state.trayLeafId = null
   renderTray()
@@ -441,9 +527,7 @@ function buildEdges(nodes, derived) {
 }
 
 function buildSubNodesForMeta(derived, metaNode, desiredLeafCount) {
-  const q = String(state.query || "").trim().toLowerCase()
-  const allLeafs0 = derived.leafByMeta.get(metaNode.id) || []
-  const allLeafs = q ? allLeafs0.filter((l) => isTextMatch(l?.name, q)) : allLeafs0
+  const allLeafs = derived.leafByMeta.get(metaNode.id) || []
   const leafs = allLeafs.slice(0, desiredLeafCount)
   const rest = allLeafs.slice(desiredLeafCount)
   const maxCount = Math.max(1, ...leafs.map((l) => derived.leafCounts.get(l.id) || 0))
@@ -570,16 +654,9 @@ function mkNodes(derived) {
   const base = Math.min(w, h) * 0.38
   const packRadius = Math.min(w, h) * 0.44
   const ga = 2.399963229728653
-  const q = String(state.query || "").trim().toLowerCase()
 
   if (state.mode === "meta") {
-    const items = q
-      ? derived.meta.filter((m) => {
-          if (isTextMatch(m?.name, q)) return true
-          const leafs = derived.leafByMeta.get(m.id) || []
-          return leafs.some((l) => isTextMatch(l?.name, q))
-        })
-      : derived.meta
+    const items = derived.meta
     const maxCount = Math.max(1, ...items.map((m) => derived.metaCounts.get(m.id) || 0))
     for (let i = 0; i < items.length; i++) {
       const m = items[i]
@@ -604,9 +681,8 @@ function mkNodes(derived) {
       })
     }
   } else {
-    const allLeafs0 = derived.leafByMeta.get(state.metaId) || []
-    const allLeafs = q ? allLeafs0.filter((l) => isTextMatch(l?.name, q)) : allLeafs0
-    const maxLeaf = q ? 160 : 60
+    const allLeafs = derived.leafByMeta.get(state.metaId) || []
+    const maxLeaf = 60
     const leafs = allLeafs.slice(0, maxLeaf)
     const rest = allLeafs.slice(maxLeaf)
     const maxCount = Math.max(1, ...leafs.map((l) => derived.leafCounts.get(l.id) || 0))
@@ -630,7 +706,7 @@ function mkNodes(derived) {
         color: colorFor(l.name, 1),
       })
     }
-    if (!q && rest.length) {
+    if (rest.length) {
       let restCount = 0
       for (const l of rest) restCount += derived.leafCounts.get(l.id) || 0
       nodes.push({
@@ -769,20 +845,35 @@ function draw(nodes) {
         ? nodes.find((n) => n.id === state.hoverId)
         : null
 
+  const q = String(state.query || "").trim()
+  const searchOn = Boolean(q) && (state.searchMetaSet.size > 0 || state.searchLeafSet.size > 0)
+
   for (const n of nodes) {
     const isHover = hover && hover.id === n.id
     const c = n.color
     const glow = isHover ? 0.22 : 0.14
     const fillA = isHover ? 0.22 : 0.14
-    const dim = focusMeta && subAlpha > 0 ? (n.id === focusMeta.id ? 1 : 0.35) : 1
+    const focusDim = focusMeta && subAlpha > 0 ? (n.id === focusMeta.id ? 1 : 0.35) : 1
+    const match =
+      !searchOn
+        ? true
+        : n.kind === "meta"
+          ? state.searchMetaSet.has(n.id)
+          : n.kind === "leaf"
+            ? state.searchLeafSet.has(n.id)
+            : false
+    const searchDim = searchOn ? (match ? 1 : 0.12) : 1
+    const dim = focusDim * searchDim
     const fill = `hsla(${c.hue} ${c.sat}% ${c.lit}% / ${fillA})`
-    const stroke = `hsla(${c.hue} ${c.sat}% ${c.lit + 8}% / ${isHover ? 0.88 : 0.50})`
+    const stroke = match
+      ? `hsla(${c.hue} ${c.sat}% ${c.lit + 10}% / ${isHover ? 0.96 : 0.86})`
+      : `hsla(${c.hue} ${c.sat}% ${c.lit + 8}% / ${isHover ? 0.88 : 0.50})`
 
     ctx.shadowColor = `hsla(${c.hue} ${c.sat}% ${c.lit + 12}% / ${glow * dim})`
     ctx.shadowBlur = isHover ? 26 : 18
     ctx.fillStyle = fill
     ctx.strokeStyle = stroke
-    ctx.lineWidth = isHover ? 2.2 : 1.4
+    ctx.lineWidth = isHover ? 2.2 : match && searchOn ? 2.4 : 1.4
     ctx.globalAlpha = dim
     ctx.beginPath()
     ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2)
@@ -821,13 +912,16 @@ function draw(nodes) {
       const isHover = hover && hover.id === n.id
       const c = n.color
       const fill = `hsla(${c.hue} ${c.sat}% ${c.lit}% / ${isHover ? 0.26 : 0.18})`
-      const stroke = `hsla(${c.hue} ${c.sat}% ${c.lit + 10}% / ${isHover ? 0.92 : 0.62})`
-      ctx.globalAlpha = subAlpha
+      const match = !searchOn ? true : state.searchLeafSet.has(n.id)
+      const stroke = match
+        ? `hsla(${c.hue} ${c.sat}% ${c.lit + 12}% / ${isHover ? 0.96 : 0.90})`
+        : `hsla(${c.hue} ${c.sat}% ${c.lit + 10}% / ${isHover ? 0.92 : 0.62})`
+      ctx.globalAlpha = subAlpha * (searchOn ? (match ? 1 : 0.12) : 1)
       ctx.shadowColor = `hsla(${c.hue} ${c.sat}% ${c.lit + 12}% / ${0.18})`
       ctx.shadowBlur = isHover ? 20 : 12
       ctx.fillStyle = fill
       ctx.strokeStyle = stroke
-      ctx.lineWidth = isHover ? 2.0 : 1.2
+      ctx.lineWidth = isHover ? 2.0 : match && searchOn ? 2.0 : 1.2
       ctx.beginPath()
       ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2)
       ctx.fill()
@@ -971,9 +1065,7 @@ function runLoop() {
     const focusNode = focus || baseFocus
 
     if (focusNode && subAlpha > 0.05) {
-      const q = String(state.query || "").trim().toLowerCase()
-      const allLeafs0 = state.data.derived.leafByMeta.get(focusNode.id) || []
-      const allLeafs = q ? allLeafs0.filter((l) => isTextMatch(l?.name, q)) : allLeafs0
+      const allLeafs = state.data.derived.leafByMeta.get(focusNode.id) || []
       const total = allLeafs.length
       const minShow = Math.min(10, total)
       const raw = Math.floor(minShow + (total - minShow) * reveal)
@@ -1025,10 +1117,13 @@ function rebuild() {
   state.subMetaId = null
   state.subLeafCount = 0
   state.forceSubAllMetaId = null
+  state.trayMode = null
   state.trayMetaId = null
   state.trayLeafId = null
   state.trayQuery = ""
   traySearchEl.value = ""
+  computeSearchCache(state.data.derived)
+  if (String(state.query || "").trim() && state.mode === "meta") openSearchTray()
   renderTray()
   setCrumbs(state.data.derived)
 }
@@ -1082,7 +1177,7 @@ function drill(node) {
 }
 
 function goBack() {
-  if (state.trayLeafId) {
+  if (state.trayMode) {
     closeTray()
     return
   }
@@ -1163,7 +1258,13 @@ backBtn.addEventListener("click", () => goBack())
 searchEl.addEventListener("input", () => {
   state.query = searchEl.value || ""
   state.forceSubAllMetaId = null
-  rebuild()
+  computeSearchCache(state.data?.derived || null)
+  if (String(state.query || "").trim()) {
+    if (state.trayMode !== "leaf") openSearchTray()
+  } else {
+    if (state.trayMode === "search") closeTray()
+  }
+  renderTray()
 })
 traySearchEl.addEventListener("input", () => {
   state.trayQuery = traySearchEl.value || ""
