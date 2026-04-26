@@ -121,6 +121,12 @@ body[data-view="leaf"] {
   min-width: 220px;
 }
 
+.input.input-compact {
+  min-width: 160px;
+  height: 34px;
+  padding: 8px 10px;
+}
+
 .btn {
   display: inline-flex;
   align-items: center;

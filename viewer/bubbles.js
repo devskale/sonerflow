@@ -8,6 +8,7 @@ const canvas = $("c")
 const storePathEl = $("storePath")
 const reloadBtn = $("reloadBtn")
 const backBtn = $("backBtn")
+const searchEl = $("search")
 const statusEl = $("status")
 const crumbsEl = $("crumbs")
 const modeChipEl = $("modeChip")
@@ -17,6 +18,7 @@ const tipEl = $("tip")
 const watermarkEl = $("watermark")
 const trayEl = $("tray")
 const trayTitleEl = $("trayTitle")
+const traySearchEl = $("traySearch")
 const trayCloseBtn = $("trayCloseBtn")
 const trayPillsEl = $("trayPills")
 
@@ -45,6 +47,8 @@ const state = {
   forceSubAllMetaId: null,
   trayMetaId: null,
   trayLeafId: null,
+  query: "",
+  trayQuery: "",
   uiView: "",
   uiFocusId: null,
   running: false,
@@ -57,6 +61,11 @@ const fmt = {
 function smoothstep(edge0, edge1, x) {
   const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)))
   return t * t * (3 - 2 * t)
+}
+
+function isTextMatch(hay, q) {
+  if (!q) return true
+  return String(hay || "").toLowerCase().includes(String(q).toLowerCase())
 }
 
 function isoToMs(s) {
@@ -110,7 +119,17 @@ function renderTray() {
 
   const repoIds = d.reposByLeaf.get(leafId) || []
   const sorted = [...repoIds].sort((a, b) => (d.trendScoreByRepo.get(b) || 0) - (d.trendScoreByRepo.get(a) || 0) || a.localeCompare(b))
-  const top = sorted.slice(0, 120)
+  const q = String(state.trayQuery || "").trim().toLowerCase()
+  const hits = q
+    ? sorted.filter((rid) => {
+        const repo = d.repoIndex.get(rid) || null
+        const desc = typeof repo?.description === "string" ? repo.description : ""
+        const topics = Array.isArray(repo?.topics) ? repo.topics.join(" ") : ""
+        const hay = `${rid} ${desc} ${topics}`.toLowerCase()
+        return hay.includes(q)
+      })
+    : sorted
+  const top = hits.slice(0, 120)
   const nowMs = Date.now()
   for (const rid of top) {
     const repo = d.repoIndex.get(rid) || null
@@ -422,7 +441,9 @@ function buildEdges(nodes, derived) {
 }
 
 function buildSubNodesForMeta(derived, metaNode, desiredLeafCount) {
-  const allLeafs = derived.leafByMeta.get(metaNode.id) || []
+  const q = String(state.query || "").trim().toLowerCase()
+  const allLeafs0 = derived.leafByMeta.get(metaNode.id) || []
+  const allLeafs = q ? allLeafs0.filter((l) => isTextMatch(l?.name, q)) : allLeafs0
   const leafs = allLeafs.slice(0, desiredLeafCount)
   const rest = allLeafs.slice(desiredLeafCount)
   const maxCount = Math.max(1, ...leafs.map((l) => derived.leafCounts.get(l.id) || 0))
@@ -549,9 +570,16 @@ function mkNodes(derived) {
   const base = Math.min(w, h) * 0.38
   const packRadius = Math.min(w, h) * 0.44
   const ga = 2.399963229728653
+  const q = String(state.query || "").trim().toLowerCase()
 
   if (state.mode === "meta") {
-    const items = derived.meta
+    const items = q
+      ? derived.meta.filter((m) => {
+          if (isTextMatch(m?.name, q)) return true
+          const leafs = derived.leafByMeta.get(m.id) || []
+          return leafs.some((l) => isTextMatch(l?.name, q))
+        })
+      : derived.meta
     const maxCount = Math.max(1, ...items.map((m) => derived.metaCounts.get(m.id) || 0))
     for (let i = 0; i < items.length; i++) {
       const m = items[i]
@@ -576,8 +604,9 @@ function mkNodes(derived) {
       })
     }
   } else {
-    const allLeafs = derived.leafByMeta.get(state.metaId) || []
-    const maxLeaf = 60
+    const allLeafs0 = derived.leafByMeta.get(state.metaId) || []
+    const allLeafs = q ? allLeafs0.filter((l) => isTextMatch(l?.name, q)) : allLeafs0
+    const maxLeaf = q ? 160 : 60
     const leafs = allLeafs.slice(0, maxLeaf)
     const rest = allLeafs.slice(maxLeaf)
     const maxCount = Math.max(1, ...leafs.map((l) => derived.leafCounts.get(l.id) || 0))
@@ -601,7 +630,7 @@ function mkNodes(derived) {
         color: colorFor(l.name, 1),
       })
     }
-    if (rest.length) {
+    if (!q && rest.length) {
       let restCount = 0
       for (const l of rest) restCount += derived.leafCounts.get(l.id) || 0
       nodes.push({
@@ -942,7 +971,9 @@ function runLoop() {
     const focusNode = focus || baseFocus
 
     if (focusNode && subAlpha > 0.05) {
-      const allLeafs = state.data.derived.leafByMeta.get(focusNode.id) || []
+      const q = String(state.query || "").trim().toLowerCase()
+      const allLeafs0 = state.data.derived.leafByMeta.get(focusNode.id) || []
+      const allLeafs = q ? allLeafs0.filter((l) => isTextMatch(l?.name, q)) : allLeafs0
       const total = allLeafs.length
       const minShow = Math.min(10, total)
       const raw = Math.floor(minShow + (total - minShow) * reveal)
@@ -996,6 +1027,8 @@ function rebuild() {
   state.forceSubAllMetaId = null
   state.trayMetaId = null
   state.trayLeafId = null
+  state.trayQuery = ""
+  traySearchEl.value = ""
   renderTray()
   setCrumbs(state.data.derived)
 }
@@ -1127,6 +1160,15 @@ canvas.addEventListener("wheel", (e) => {
 reloadBtn.addEventListener("click", () => reload())
 trayCloseBtn.addEventListener("click", () => closeTray())
 backBtn.addEventListener("click", () => goBack())
+searchEl.addEventListener("input", () => {
+  state.query = searchEl.value || ""
+  state.forceSubAllMetaId = null
+  rebuild()
+})
+traySearchEl.addEventListener("input", () => {
+  state.trayQuery = traySearchEl.value || ""
+  renderTray()
+})
 storePathEl.addEventListener("keydown", (e) => {
   if (e.key === "Enter") reload()
 })

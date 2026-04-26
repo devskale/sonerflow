@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ghsorter bubbles</title>
-    <link rel="stylesheet" href="./bubbles.css?v=19" />
+    <link rel="stylesheet" href="./bubbles.css?v=20" />
   </head>
   <body>
     <header class="topbar">
@@ -20,6 +20,10 @@
         <button id="reloadBtn" class="btn">Reload</button>
         <button id="backBtn" class="btn btn-secondary is-hidden" type="button">Back</button>
         <a class="btn btn-secondary" href="./">List</a>
+        <label class="field">
+          <span class="label">Search</span>
+          <input id="search" class="input" placeholder="meta / leaf…" />
+        </label>
         <div class="crumbs" id="crumbs"></div>
         <div class="modechip" id="modeChip"></div>
       </div>
@@ -42,12 +46,13 @@
       <div class="tray hidden" id="tray">
         <div class="tray-head">
           <div class="tray-title" id="trayTitle"></div>
+          <input id="traySearch" class="input input-compact" placeholder="repo…" />
           <button class="btn btn-secondary tray-close" id="trayCloseBtn" type="button">Close</button>
         </div>
         <div class="tray-pills" id="trayPills"></div>
       </div>
     </main>
 
-    <script type="module" src="./bubbles.js?v=19"></script>
+    <script type="module" src="./bubbles.js?v=20"></script>
   </body>
 </html>
