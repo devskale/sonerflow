@@ -360,6 +360,18 @@ function recencyFor(repoId, derived) {
   return typeof v === "number" ? v : 10_000
 }
 
+function categoryTextFor(repoId, derived) {
+  const a = derived.assignmentByRepo.get(repoId) || null
+  const cids = Array.isArray(a?.category_ids) ? a.category_ids : []
+  const names = []
+  for (const cid of cids) {
+    if (typeof cid !== "string" || !cid) continue
+    const lbl = derived.labelsById.get(cid) || null
+    names.push(lbl?.name || cid)
+  }
+  return names.join(" ")
+}
+
 function trendingFor(repoId, derived) {
   const v = derived.trendScoreByRepo?.get(repoId)
   return typeof v === "number" ? v : 0
@@ -421,7 +433,9 @@ function getContextRepoIds(derived) {
     for (const [rid, repo] of derived.repoIndex.entries()) {
       const desc = typeof repo.description === "string" ? repo.description : ""
       const topics = Array.isArray(repo.topics) ? repo.topics.join(" ") : ""
-      const hay = `${rid} ${desc} ${topics}`.toLowerCase()
+      const lang = typeof repo.language === "string" ? repo.language : ""
+      const cats = categoryTextFor(rid, derived)
+      const hay = `${rid} ${desc} ${topics} ${lang} ${cats}`.toLowerCase()
       if (hay.includes(q)) hits.push(rid)
     }
     return hits
@@ -715,6 +729,7 @@ function applyUrlParamsOnce(derived) {
   const meta = qs.get("meta")
   const leaf = qs.get("leaf")
   const topic = qs.get("topic")
+  const q = qs.get("q")
 
   let did = false
 
@@ -738,6 +753,12 @@ function applyUrlParamsOnce(derived) {
 
   if (topic) {
     state.topicFilter = topic
+    did = true
+  }
+
+  if (q) {
+    state.search = q
+    searchEl.value = q
     did = true
   }
 

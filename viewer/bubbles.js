@@ -8,6 +8,7 @@ const canvas = $("c")
 const storePathEl = $("storePath")
 const reloadBtn = $("reloadBtn")
 const backBtn = $("backBtn")
+const listLinkEl = $("listLink")
 const searchEl = $("search")
 const statusEl = $("status")
 const crumbsEl = $("crumbs")
@@ -190,20 +191,21 @@ function renderTray() {
 
   const openList = document.createElement("a")
   openList.className = "pill pill-secondary"
-  openList.href = `./?meta=${encodeURIComponent(metaId)}&leaf=${encodeURIComponent(leafId)}`
+  const queryText = String(state.query || "").trim()
+  openList.href = `./?meta=${encodeURIComponent(metaId)}&leaf=${encodeURIComponent(leafId)}${queryText ? `&q=${encodeURIComponent(queryText)}` : ""}`
   openList.textContent = "open list"
   trayPillsEl.appendChild(openList)
 
   const repoIds = d.reposByLeaf.get(leafId) || []
   const sorted = [...repoIds].sort((a, b) => (d.trendScoreByRepo.get(b) || 0) - (d.trendScoreByRepo.get(a) || 0) || a.localeCompare(b))
-  const q = String(state.trayQuery || "").trim().toLowerCase()
-  const hits = q
+  const trayQ = String(state.trayQuery || "").trim().toLowerCase()
+  const hits = trayQ
     ? sorted.filter((rid) => {
         const repo = d.repoIndex.get(rid) || null
         const desc = typeof repo?.description === "string" ? repo.description : ""
         const topics = Array.isArray(repo?.topics) ? repo.topics.join(" ") : ""
         const hay = `${rid} ${desc} ${topics}`.toLowerCase()
-        return hay.includes(q)
+        return hay.includes(trayQ)
       })
     : sorted
   const top = hits.slice(0, 120)
@@ -310,6 +312,14 @@ function updateModeUi(derived) {
       watermarkEl.classList.remove("hidden")
     }
   }
+
+  const q = String(state.query || "").trim()
+  const params = new URLSearchParams()
+  if (q) params.set("q", q)
+  if (view === "leaf" && state.metaId) params.set("meta", state.metaId)
+  if (view === "focus" && focusId) params.set("meta", focusId)
+  const qs = params.toString()
+  listLinkEl.href = qs ? `./?${qs}` : "./"
 }
 
 function setStatus(text, kind = "ok") {
