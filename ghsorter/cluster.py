@@ -144,7 +144,17 @@ def _load_seed_lists(path: Path) -> dict[str, set[str]]:
 
 def _top_terms(repos: list[dict[str, Any]], *, max_terms: int = 3) -> list[str]:
     counts: dict[str, float] = {}
-    rename = {"claude-code": "coding-agent"}
+    rename = {
+        "claude-code": "coding-agent",
+        "llm": "genai",
+        "large-language-model": "genai",
+        "large-language-models": "genai",
+        "gpt": "genai",
+        "gpt-4": "genai",
+        "openai": "genai",
+        "computer-vision": "vision",
+        "speech-recognition": "speech",
+    }
     for r in repos:
         topics = r.get("topics")
         if isinstance(topics, list):
@@ -285,9 +295,30 @@ def cluster_repos(
             meta_centroid_by_group[g] = np.mean(centroids[idx, :], axis=0)
 
         labels_out: list[dict[str, Any]] = []
+        used_meta_names: set[str] = set()
         for g in group_ids:
             names = group_to_names[g]
-            display = names[0] if names else f"Meta {g}"
+            repos_in_group = [
+                id_to_repo[rid]
+                for n in names
+                for rid in seed_lists.get(n, set())
+                if rid in id_to_repo
+            ]
+            candidates = _top_terms(repos_in_group, max_terms=8)
+            picked = None
+            for c in candidates:
+                if c not in used_meta_names:
+                    picked = c
+                    break
+            if picked is None:
+                picked = candidates[0] if candidates else (names[0] if names else f"Meta {g}")
+            if picked in used_meta_names:
+                i = 2
+                while f"{picked}-{i}" in used_meta_names:
+                    i += 1
+                picked = f"{picked}-{i}"
+            used_meta_names.add(picked)
+            display = picked
             labels_out.append(
                 {
                     "id": meta_id_by_group[g],
