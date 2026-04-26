@@ -39,6 +39,7 @@ const state = {
   subNodes: [],
   subMetaId: null,
   subLeafCount: 0,
+  forceSubAllMetaId: null,
   trayMetaId: null,
   trayLeafId: null,
   running: false,
@@ -867,7 +868,10 @@ function runLoop() {
       const minShow = Math.min(10, total)
       const raw = Math.floor(minShow + (total - minShow) * reveal)
       const step = 5
-      const desired = Math.min(total, Math.max(minShow, Math.ceil(raw / step) * step))
+      const desired =
+        state.forceSubAllMetaId === focusNode.id
+          ? total
+          : Math.min(total, Math.max(minShow, Math.ceil(raw / step) * step))
 
       if (state.subMetaId !== focusNode.id || desired !== state.subLeafCount) {
         state.subMetaId = focusNode.id
@@ -909,6 +913,7 @@ function rebuild() {
   state.subNodes = []
   state.subMetaId = null
   state.subLeafCount = 0
+  state.forceSubAllMetaId = null
   state.trayMetaId = null
   state.trayLeafId = null
   renderTray()
@@ -936,7 +941,8 @@ async function reload() {
 
 function drill(node) {
   if (!node || !state.data) return
-  const resolved = typeof node?.id === "string" && node.id.startsWith("sub:") ? { ...node, id: node.id.slice(4) } : node
+  const isSub = typeof node?.id === "string" && node.id.startsWith("sub:")
+  const resolved = isSub ? { ...node, id: node.id.slice(4) } : node
   if (resolved.kind === "meta") {
     closeTray()
     state.mode = "leaf"
@@ -951,6 +957,11 @@ function drill(node) {
     return
   }
   if (resolved.kind === "more") {
+    if (isSub && resolved.id === "leaf-more" && state.subMetaId) {
+      state.forceSubAllMetaId = state.subMetaId
+      state.zoom = Math.max(state.zoom, 6.0)
+      return
+    }
     const meta = state.mode === "leaf" ? state.metaId : state.subMetaId || state.metaId || ""
     const url = `./?meta=${encodeURIComponent(meta)}`
     window.location.href = url
