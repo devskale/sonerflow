@@ -19,7 +19,6 @@ const tipEl = $("tip")
 const watermarkEl = $("watermark")
 const trayEl = $("tray")
 const trayTitleEl = $("trayTitle")
-const traySearchEl = $("traySearch")
 const trayCloseBtn = $("trayCloseBtn")
 const trayPillsEl = $("trayPills")
 
@@ -50,7 +49,6 @@ const state = {
   trayLeafId: null,
   trayMode: null,
   query: "",
-  trayQuery: "",
   searchRepoIds: [],
   searchRepoSet: new Set(),
   searchLeafSet: new Set(),
@@ -159,9 +157,7 @@ function renderTray() {
   if (state.trayMode === "search") {
     const q = String(state.query || "").trim()
     trayTitleEl.textContent = `Search · ${q || "…" } · ${fmt.n(state.searchRepoIds.length)} repos`
-    const q2 = String(state.trayQuery || "").trim().toLowerCase()
-    const ids = q2 ? state.searchRepoIds.filter((rid) => isTextMatch(rid, q2)) : state.searchRepoIds
-    for (const rid of ids.slice(0, 200)) {
+    for (const rid of state.searchRepoIds.slice(0, 200)) {
       const repo = d.repoIndex.get(rid) || null
       const pill = document.createElement("a")
       pill.className = "pill"
@@ -198,16 +194,8 @@ function renderTray() {
 
   const repoIds = d.reposByLeaf.get(leafId) || []
   const sorted = [...repoIds].sort((a, b) => (d.trendScoreByRepo.get(b) || 0) - (d.trendScoreByRepo.get(a) || 0) || a.localeCompare(b))
-  const trayQ = String(state.trayQuery || "").trim().toLowerCase()
-  const hits = trayQ
-    ? sorted.filter((rid) => {
-        const repo = d.repoIndex.get(rid) || null
-        const desc = typeof repo?.description === "string" ? repo.description : ""
-        const topics = Array.isArray(repo?.topics) ? repo.topics.join(" ") : ""
-        const hay = `${rid} ${desc} ${topics}`.toLowerCase()
-        return hay.includes(trayQ)
-      })
-    : sorted
+  const topQuery = String(state.query || "").trim().toLowerCase()
+  const hits = topQuery ? sorted.filter((rid) => state.searchRepoSet.has(rid)) : sorted
   const top = hits.slice(0, 120)
   const nowMs = Date.now()
   for (const rid of top) {
@@ -1130,8 +1118,6 @@ function rebuild() {
   state.trayMode = null
   state.trayMetaId = null
   state.trayLeafId = null
-  state.trayQuery = ""
-  traySearchEl.value = ""
   computeSearchCache(state.data.derived)
   if (String(state.query || "").trim() && state.mode === "meta") openSearchTray()
   renderTray()
@@ -1274,10 +1260,6 @@ searchEl.addEventListener("input", () => {
   } else {
     if (state.trayMode === "search") closeTray()
   }
-  renderTray()
-})
-traySearchEl.addEventListener("input", () => {
-  state.trayQuery = traySearchEl.value || ""
   renderTray()
 })
 storePathEl.addEventListener("keydown", (e) => {
