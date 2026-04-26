@@ -581,11 +581,11 @@ function draw(nodes) {
 
       ctx.fillStyle = "rgba(255,255,255,0.62)"
       ctx.font = `500 ${Math.max(9, Math.min(11, n.r * 0.22))}px ${getComputedStyle(document.documentElement).getPropertyValue("--mono")}`
-      ctx.fillText(n.kind === "meta" ? `${fmt.n(n.subCount || 0)} / ${fmt.n(n.count)}` : fmt.n(n.count), n.x, n.y + 12)
+      ctx.fillText(n.kind === "meta" ? fmt.n(n.subCount || 0) : fmt.n(n.count), n.x, n.y + 12)
     } else {
       ctx.fillStyle = "rgba(255,255,255,0.55)"
       ctx.font = `500 ${Math.max(9, Math.min(11, n.r * 0.24))}px ${getComputedStyle(document.documentElement).getPropertyValue("--mono")}`
-      ctx.fillText(n.kind === "meta" ? `${fmt.n(n.subCount || 0)} / ${fmt.n(n.count)}` : fmt.n(n.count), n.x, n.y + 2)
+      ctx.fillText(n.kind === "meta" ? fmt.n(n.subCount || 0) : fmt.n(n.count), n.x, n.y + 2)
     }
   }
 
@@ -622,13 +622,13 @@ function draw(nodes) {
         ctx.fillText(label, n.x, n.y - 5)
         ctx.fillStyle = "rgba(255,255,255,0.60)"
         ctx.font = `500 ${Math.max(8, Math.min(10, n.r * 0.22))}px ${getComputedStyle(document.documentElement).getPropertyValue("--mono")}`
-        ctx.fillText(n.kind === "meta" ? `${fmt.n(n.subCount || 0)} / ${fmt.n(n.count)}` : fmt.n(n.count), n.x, n.y + 10)
+        ctx.fillText(n.kind === "meta" ? fmt.n(n.subCount || 0) : fmt.n(n.count), n.x, n.y + 10)
       } else {
         ctx.fillStyle = "rgba(255,255,255,0.56)"
         ctx.font = `500 ${Math.max(8, Math.min(10, n.r * 0.24))}px ${getComputedStyle(document.documentElement).getPropertyValue("--mono")}`
         ctx.textAlign = "center"
         ctx.textBaseline = "middle"
-        ctx.fillText(n.kind === "meta" ? `${fmt.n(n.subCount || 0)} / ${fmt.n(n.count)}` : fmt.n(n.count), n.x, n.y + 2)
+        ctx.fillText(n.kind === "meta" ? fmt.n(n.subCount || 0) : fmt.n(n.count), n.x, n.y + 2)
       }
     }
   }
