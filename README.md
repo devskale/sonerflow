@@ -36,16 +36,8 @@ Defaults to `./.ghsorter_store/` if `./.ghsorter.json` exists (override via `--s
 
 Default LLM settings:
 
-- baseurl defaults to `https://amd1.mooo.com:8123/v1`
-- api key defaults to `credgoo` service `amd1`
-- if baseurl is the default, model defaults to `tu@qwen-coder-30b`
+- base URL + model come from `./.ghsorter.json` (project) or `~/.ghsorter/` (global), or env vars
 - context window is model-dependent; pass `--context-tokens` if needed
-
-If credgoo isn't configured yet:
-
-```bash
-uv run credgoo --setup
-```
 
 Optional overrides (env vars):
 
@@ -79,5 +71,5 @@ uv run ghsorter config set --model 'tu@qwen-coder-30b' --context-tokens 16384
 To store defaults in a project-local config file (`./.ghsorter.json`):
 
 ```bash
-uv run ghsorter config set --project --base-url 'https://amd1.mooo.com:8123/v1' --model 'tu@qwen-coder-30b' --context-tokens 16384 --credgoo-key amd1
+uv run ghsorter config set --project --base-url 'https://your-openai-compatible.example/v1' --model 'tu@qwen-coder-30b' --context-tokens 16384
 ```
