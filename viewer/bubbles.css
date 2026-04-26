@@ -35,6 +35,30 @@ body {
   overflow: hidden;
 }
 
+body[data-view="top"] {
+  background:
+    radial-gradient(900px 600px at 15% -10%, rgba(124, 247, 192, 0.16), transparent 60%),
+    radial-gradient(900px 600px at 90% 10%, rgba(111, 183, 255, 0.20), transparent 58%),
+    radial-gradient(900px 600px at 40% 110%, rgba(255, 107, 107, 0.08), transparent 60%),
+    linear-gradient(180deg, #05060a, #070a10 40%, #04050a);
+}
+
+body[data-view="focus"] {
+  background:
+    radial-gradient(900px 650px at 50% 15%, rgba(111, 183, 255, 0.22), transparent 60%),
+    radial-gradient(900px 650px at 20% 80%, rgba(124, 247, 192, 0.12), transparent 62%),
+    radial-gradient(900px 650px at 90% 90%, rgba(255, 107, 107, 0.10), transparent 62%),
+    linear-gradient(180deg, #04060b, #060a14 42%, #04050a);
+}
+
+body[data-view="leaf"] {
+  background:
+    radial-gradient(900px 650px at 30% 10%, rgba(124, 247, 192, 0.22), transparent 60%),
+    radial-gradient(900px 650px at 90% 20%, rgba(111, 183, 255, 0.12), transparent 62%),
+    radial-gradient(900px 650px at 50% 110%, rgba(255, 107, 107, 0.12), transparent 62%),
+    linear-gradient(180deg, #04070a, #06100d 44%, #04050a);
+}
+
 .is-hidden {
   display: none !important;
 }
