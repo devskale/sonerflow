@@ -47,7 +47,7 @@ def gh_api_json(endpoint: str, *, paginate: bool = False, slurp: bool = False, h
 
 def list_starred_repos() -> list[dict[str, Any]]:
     headers = {
-        "Accept": "application/vnd.github+json",
+        "Accept": "application/vnd.github.star+json",
         "X-GitHub-Api-Version": "2022-11-28",
     }
     res = gh_api_json("/user/starred?per_page=100", paginate=True, slurp=True, headers=headers)
@@ -58,9 +58,30 @@ def list_starred_repos() -> list[dict[str, Any]]:
         out: list[dict[str, Any]] = []
         for page in pages:
             if isinstance(page, list):
-                out.extend([x for x in page if isinstance(x, dict)])
+                for x in page:
+                    if not isinstance(x, dict):
+                        continue
+                    repo = x.get("repo")
+                    if isinstance(repo, dict):
+                        starred_at = x.get("starred_at")
+                        if isinstance(starred_at, str) and starred_at:
+                            repo = {**repo, "starred_at": starred_at}
+                        out.append(repo)
+                    else:
+                        out.append(x)
         return out
     if isinstance(pages, list):
-        return [x for x in pages if isinstance(x, dict)]
+        out: list[dict[str, Any]] = []
+        for x in pages:
+            if not isinstance(x, dict):
+                continue
+            repo = x.get("repo")
+            if isinstance(repo, dict):
+                starred_at = x.get("starred_at")
+                if isinstance(starred_at, str) and starred_at:
+                    repo = {**repo, "starred_at": starred_at}
+                out.append(repo)
+            else:
+                out.append(x)
+        return out
     raise GhError("Unexpected response format from /user/starred")
-

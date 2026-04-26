@@ -894,6 +894,7 @@ canvas.addEventListener("wheel", (e) => {
   const delta = Math.sign(e.deltaY)
   const z = state.zoom * (delta > 0 ? 0.92 : 1.08)
   zoomTo(z, x, y)
+  if (state.mode === "leaf" && delta > 0 && state.zoom < 0.65) goBack()
 })
 
 reloadBtn.addEventListener("click", () => reload())

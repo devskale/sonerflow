@@ -47,6 +47,16 @@ const fmt = {
   score: (x) => (typeof x === "number" ? x.toFixed(3) : ""),
 }
 
+function isoToMs(s) {
+  if (typeof s !== "string" || !s) return null
+  const v = Date.parse(s)
+  return Number.isFinite(v) ? v : null
+}
+
+function daysBetweenMs(a, b) {
+  return Math.abs(a - b) / (1000 * 60 * 60 * 24)
+}
+
 function resetPagination() {
   state.renderLimit = 200
 }
@@ -84,9 +94,17 @@ function repoBadges(repoId, repo, assignment) {
   const lang = typeof repo?.language === "string" ? repo.language : ""
   const stars = repo?.signals?.stars ?? repo?.stats?.stargazers_count
   const recency = repo?.signals?.recency_days
+  const nowMs = Date.now()
+  const starredAtMs = isoToMs(repo?.starred_at)
+  const isNew = typeof starredAtMs === "number" && daysBetweenMs(nowMs, starredAtMs) <= 30
+  const trendScore = state.data?.derived?.trendScoreByRepo?.get(repoId) || 0
+  const risingThreshold = state.data?.derived?.risingThreshold
+  const isRising = typeof risingThreshold === "number" && trendScore >= risingThreshold
   if (lang) out.push({ text: lang, kind: "badge blue", type: "lang" })
   if (typeof stars === "number") out.push({ text: `★ ${fmt.n(stars)}`, kind: "badge", type: "stars" })
   if (typeof recency === "number") out.push({ text: `last ${recency}d`, kind: "badge", type: "recency" })
+  if (isNew) out.push({ text: "new", kind: "badge blue", type: "new" })
+  if (isRising) out.push({ text: "rising", kind: "badge accent", type: "rising" })
   for (const t of topics) out.push({ text: t, kind: "badge", type: "topic" })
   if (assignment?.locked) out.push({ text: "locked", kind: "badge accent", type: "locked" })
   if (assignment?.suggested_meta_id) out.push({ text: `suggest ${assignment.suggested_meta_id}`, kind: "badge warn", type: "suggest" })
@@ -162,6 +180,24 @@ function computeDerived(labels, assignments, catalogRepos) {
   meta.sort((a, b) => (metaCounts.get(b.id) ?? 0) - (metaCounts.get(a.id) ?? 0) || String(a.name).localeCompare(String(b.name)))
 
   const repoIndex = buildIndex({ repos: catalogRepos })
+  const trendScoreByRepo = new Map()
+  const trendScores = []
+  for (const [rid, repo] of repoIndex.entries()) {
+    const spm = repo?.signals?.stars_per_month
+    const rec = repo?.signals?.recency_days
+    const stars = repo?.signals?.stars ?? repo?.stats?.stargazers_count
+    const starsOk = typeof stars === "number" ? stars : 0
+    const spmOk = typeof spm === "number" ? spm : 0
+    const recOk = typeof rec === "number" ? rec : 10_000
+    const recBoost = 1 / (1 + recOk / 30)
+    const score = spmOk * recBoost * Math.log1p(Math.max(0, starsOk))
+    trendScoreByRepo.set(rid, score)
+    if (score > 0) trendScores.push(score)
+  }
+  trendScores.sort((a, b) => a - b)
+  const p = 0.95
+  const idx = trendScores.length ? Math.min(trendScores.length - 1, Math.floor(trendScores.length * p)) : 0
+  const risingThreshold = trendScores.length ? trendScores[idx] : Infinity
 
   return {
     labelsById,
@@ -176,6 +212,8 @@ function computeDerived(labels, assignments, catalogRepos) {
     metaCounts,
     leafCounts,
     repoIndex,
+    trendScoreByRepo,
+    risingThreshold,
   }
 }
 
@@ -322,6 +360,11 @@ function recencyFor(repoId, derived) {
   return typeof v === "number" ? v : 10_000
 }
 
+function trendingFor(repoId, derived) {
+  const v = derived.trendScoreByRepo?.get(repoId)
+  return typeof v === "number" ? v : 0
+}
+
 function applyAssignmentFilters(list, derived) {
   if (!state.lockedOnly && !state.suggestedOnly) return list
   const out = []
@@ -357,6 +400,10 @@ function sortRepos(list, derived) {
   }
   if (key === "recency") {
     copy.sort((a, b) => recencyFor(a, derived) - recencyFor(b, derived) || a.localeCompare(b))
+    return copy
+  }
+  if (key === "trending") {
+    copy.sort((a, b) => trendingFor(b, derived) - trendingFor(a, derived) || a.localeCompare(b))
     return copy
   }
   if (key === "score") {
